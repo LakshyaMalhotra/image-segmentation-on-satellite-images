@@ -82,9 +82,41 @@ class ImageProcessing:
 
         return one_hot
 
+    def inverse_ohe(self, ohe_labels: np.ndarray) -> np.ndarray:
+        """Converts back the one-hot encoded mask to the multiclass segmentation
+        mask.
+
+        Args:
+        -----
+            ohe_labels (np.ndarray): Output or the target array with shape
+            `height` x `width` x `n_classes`.
+
+        Returns:
+        --------
+            np.ndarray: Segmentation mask
+        """
+        # we don't want our model to predict class 0
+        if ohe_labels.shape[-1] != (self.n_classes):  # -1
+            raise ValueError(
+                f"The last dimension should contain {self.n_classes-1} but got {ohe_labels.shape[-1]}"
+            )
+
+        # adding back 1 to include the null class (no-data class)
+        inverse_ohe = (np.argmax(ohe_labels, axis=-1) + 1).astype(np.uint8)
+
+        return inverse_ohe
+
 
 if __name__ == "__main__":
     logger = get_logger()
     logger.info("Start image preprocessing.")
-    preprocess = ImageProcessing()
+    preprocess = ImageProcessing(n_classes=3)
     print(preprocess.class_df)
+    logger.info("One-hot encoding the segmentation masks.")
+    test_array = np.random.randint(0, 3, size=(5, 5))
+    print(test_array)
+    ohe_array = preprocess.make_ohe(test_array)
+    logger.info(f"One hot array:\n {ohe_array}")
+    logger.info("Inverse one hot encoding")
+    inverse_ohe = preprocess.inverse_ohe(ohe_array)
+    logger.info(f"Output array:\n {inverse_ohe}")
