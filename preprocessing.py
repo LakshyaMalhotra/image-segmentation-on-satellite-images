@@ -58,6 +58,30 @@ class ImageProcessing:
         self.output_dir = output_dir
         self.n_classes = n_classes
 
+    def make_ohe(self, mask_array: np.ndarray) -> np.ndarray:
+        """Create one-hot encoded mask with shape: `height` x `width` x `n_classes`
+        from the segmentation mask.
+
+        Args:
+        -----
+            mask_array (np.ndarray): 2D array containing the segmentation mask
+            for each image. Each element corresponds to the class label for that
+            particular pixel.
+
+        Returns:
+        --------
+            np.ndarray: One-hot encoded mask with shape: `height` x `width` x `n_classes`
+        """
+        height, width = mask_array.shape
+        one_hot = np.zeros((height, width, self.n_classes), dtype=int)
+
+        # iterate over all the classes
+        for i in range(self.n_classes):
+            x, y = np.where(mask_array == i)
+            one_hot[x, y, i] = 1
+
+        return one_hot
+
 
 if __name__ == "__main__":
     logger = get_logger()
