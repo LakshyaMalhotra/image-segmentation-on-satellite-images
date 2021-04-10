@@ -7,6 +7,7 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
+from PIL import Image
 
 # settings
 warnings.filterwarnings("ignore")
@@ -96,7 +97,7 @@ class ImageProcessing:
             np.ndarray: Segmentation mask
         """
         # we don't want our model to predict class 0
-        if ohe_labels.shape[-1] != (self.n_classes):  # -1
+        if ohe_labels.shape[-1] != (self.n_classes) - 1:
             raise ValueError(
                 f"The last dimension should contain {self.n_classes-1} but got {ohe_labels.shape[-1]}"
             )
@@ -105,6 +106,48 @@ class ImageProcessing:
         inverse_ohe = (np.argmax(ohe_labels, axis=-1) + 1).astype(np.uint8)
 
         return inverse_ohe
+
+    def class2color(
+        self, ohe_labels: np.ndarray, save_file: bool = False
+    ) -> None:
+        """Create a colored mask from the model output.
+
+        Args:
+        -----
+            ohe_labels (np.ndarray): Output or the target array with shape
+            `height` x `width` x `n_classes`.
+            save_file (bool, optional): Whether or not to save the colored image.
+            Defaults to False.
+        """
+        # raise exception if the path to the output directory and file are not provided
+        if (self.output_dir is None) or (self.file_prefix is None):
+            raise FileNotFoundError(
+                "Output directory/file_name is not specified"
+            )
+
+        inverse_ohe_img = self.inverse_ohe(ohe_labels)
+        colored_mask = np.zeros((inverse_ohe_img.shape), dtype=np.uint8)
+
+        # create a colored mask with the same shape as ground truth with 3 color channels
+        colored_mask = np.dstack([colored_mask, colored_mask, colored_mask])
+
+        # fill the colored mask with the corresponding class color
+        for i in range(self.n_classes):
+            color = self.class_df[self.class_df["class_id"] == i]["color"]
+            locs = np.where(inverse_ohe_img == i)
+            colored_mask[locs[0], locs[1], :] = tuple(color)
+
+        colored_mask = Image.fromarray(
+            colored_mask.astype(np.uint8), mode="RGB"
+        )
+
+        # save the colored mask image
+        if save_file:
+            colored_mask.save(
+                os.path.join(
+                    self.output_dir, self.file_prefix + "_output_mask.png"
+                )
+            )
 
 
 if __name__ == "__main__":
@@ -120,3 +163,5 @@ if __name__ == "__main__":
     logger.info("Inverse one hot encoding")
     inverse_ohe = preprocess.inverse_ohe(ohe_array)
     logger.info(f"Output array:\n {inverse_ohe}")
+    logger.info("Generating colored image from the segmentation mask")
+    preprocess.class2color(ohe_array)
